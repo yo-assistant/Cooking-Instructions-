@@ -1,482 +1,698 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-TW" class="h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>飯捲店備料與開攤步驟工具</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <!-- FontAwesome for Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>飯捲店備料與出攤流程助手</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
-        body { font-family: 'Noto Sans TC', sans-serif; }
+        body { font-family: 'Noto Sans TC', 'Inter', sans-serif; }
     </style>
 </head>
-<body class="bg-amber-50/50 text-slate-800 min-h-screen flex flex-col">
+<body class="bg-amber-50 text-slate-800 h-full flex flex-col antialiased">
 
-    <!-- 頂部導覽列 -->
-    <header class="bg-amber-600 text-white shadow-md sticky top-0 z-40">
-        <div class="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
+    <header class="bg-amber-600 text-white shadow-md sticky top-0 z-30">
+        <div class="max-w-5xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
             <div class="flex items-center space-x-2">
-                <i class="fa-solid fa-utensils text-xl"></i>
-                <h1 class="text-lg font-bold tracking-wider">飯捲店備料與出攤助手</h1>
+                <span class="text-2xl">🍙</span>
+                <div>
+                    <h1 class="text-lg font-bold leading-tight">飯捲店備料與出攤助手</h1>
+                    <div class="flex items-center gap-2">
+                        <p class="text-xs text-amber-100" id="current-date-display">載入日期中...</p>
+                        <span id="sync-status" class="text-[10px] bg-amber-700 px-1.5 py-0.5 rounded text-amber-200">雲端同步就緒</span>
+                    </div>
+                </div>
             </div>
-            <div class="flex items-center space-x-2">
-                <button onclick="exportData()" class="bg-amber-700 hover:bg-amber-800 text-xs px-2.5 py-1.5 rounded-lg transition shadow flex items-center space-x-1 cursor-pointer">
-                    <i class="fa-solid fa-download"></i><span>匯出備份</span>
+            <div class="flex items-center gap-2">
+                <button onclick="switchTab('execution')" id="tab-execution" class="px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-700 text-white transition shadow-sm">
+                    🚀 今日執行
                 </button>
-                <label class="bg-amber-700 hover:bg-amber-800 text-xs px-2.5 py-1.5 rounded-lg transition shadow flex items-center space-x-1 cursor-pointer">
-                    <i class="fa-solid fa-upload"></i><span>匯入備份</span>
-                    <input type="file" id="importFile" accept=".json" class="hidden" onchange="importData(event)">
-                </label>
+                <button onclick="switchTab('templates')" id="tab-templates" class="px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-500/80 hover:bg-amber-500 text-white transition">
+                    ⚙️ 步驟設定
+                </button>
             </div>
         </div>
     </header>
 
-    <!-- 頂端常駐計時器面板 (堆疊顯示) -->
-    <div id="timers-container" class="bg-amber-900 text-white px-4 py-2 shadow-inner hidden">
-        <div class="max-w-4xl mx-auto">
-            <div class="text-xs text-amber-300 font-semibold mb-1 flex items-center justify-between">
-                <span><i class="fa-solid fa-stopwatch animate-pulse mr-1"></i> 進行中的倒數計時</span>
-                <span id="active-timer-count" class="bg-amber-800 px-2 py-0.5 rounded-full text-[10px]">0 個計時中</span>
-            </div>
-            <div id="running-timers-list" class="flex flex-wrap gap-2"></div>
-        </div>
+    <!-- GitHub Deployment Help Banner -->
+    <div class="bg-amber-100 border-b border-amber-200 px-4 py-2 text-xs text-amber-900 flex justify-between items-center">
+        <span>💡 <b>提示：</b>將此單一 HTML 檔案上傳到 GitHub 後，若想產生網址分享給平板使用，請開啟 GitHub 倉庫的 <b>Settings > Pages</b>，將 Source 設為 <b>main / root</b> 即可取得 GitHub Pages 網址！</span>
     </div>
 
-    <!-- 主頁籤切換 -->
-    <nav class="bg-white border-b border-amber-200 shadow-sm sticky top-[53px] z-30">
-        <div class="max-w-4xl mx-auto flex">
-            <button onclick="switchTab('execute')" id="tab-execute" class="flex-1 py-3 text-center font-bold text-amber-700 border-b-2 border-amber-600 transition flex items-center justify-center space-x-2">
-                <i class="fa-solid fa-list-check"></i><span>今日執行與備料</span>
-            </button>
-            <button onclick="switchTab('templates')" id="tab-templates" class="flex-1 py-3 text-center font-medium text-slate-500 hover:text-amber-700 border-b-2 border-transparent transition flex items-center justify-center space-x-2">
-                <i class="fa-solid fa-gear"></i><span>步驟與標籤設定</span>
-            </button>
-        </div>
-    </nav>
-
-    <!-- 主內容區 -->
-    <main class="max-w-4xl mx-auto px-4 py-6 flex-1 w-full pb-24">
+    <main class="flex-1 max-w-5xl w-full mx-auto p-3 sm:p-6 overflow-y-auto pb-24">
         
-        <!-- 執行頁面 -->
-        <section id="section-execute" class="space-y-6">
-            <!-- 日期與進度卡片 -->
-            <div class="bg-white p-5 rounded-2xl shadow-sm border border-amber-100 flex flex-col md:flex-row justify-between items-center gap-4">
-                <div class="w-full md:w-auto">
-                    <label class="block text-xs font-bold text-slate-400 mb-1">選擇工作日期</label>
-                    <input type="date" id="work-date" onchange="changeDate()" class="bg-amber-50 border border-amber-200 text-slate-700 text-sm rounded-xl px-3 py-2 font-bold focus:outline-none focus:ring-2 focus:ring-amber-500">
-                </div>
-                <div class="w-full md:flex-1 md:max-w-xs">
-                    <div class="flex justify-between text-xs font-bold text-slate-600 mb-1">
-                        <span>今日完成進度</span>
-                        <span id="progress-text">0 / 0 (0%)</span>
+        <!-- ================= EXECUTION VIEW ================= -->
+        <div id="view-execution" class="space-y-4">
+            
+            <!-- Date & Timer Bar -->
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-amber-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div class="flex items-center gap-3 w-full md:w-auto">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">選擇工作日期:</label>
+                        <input type="date" id="exec-date-picker" onchange="changeExecDate(this.value)" class="bg-amber-50 border border-amber-300 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500">
                     </div>
-                    <div class="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
-                        <div id="progress-bar" class="bg-amber-500 h-full transition-all duration-300" style="width: 0%"></div>
+                    <div class="flex-1 md:flex-initial">
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">整體進度:</label>
+                        <div class="flex items-center gap-2">
+                            <div class="w-32 sm:w-48 bg-slate-200 rounded-full h-3 overflow-hidden">
+                                <div id="overall-progress-bar" class="bg-emerald-500 h-full transition-all duration-300" style="width: 0%"></div>
+                            </div>
+                            <span id="overall-progress-text" class="text-xs font-bold text-slate-600">0%</span>
+                        </div>
                     </div>
                 </div>
-                <div>
-                    <button onclick="resetTodayProgress()" class="bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs px-3 py-2 rounded-xl transition font-medium">
-                        <i class="fa-solid fa-rotate-right mr-1"></i>重設今日進度
+
+                <div class="flex items-center gap-2 w-full md:w-auto justify-end">
+                    <button onclick="resetExecutionProgress()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs rounded-lg font-medium transition">
+                        🔄 重置今日進度
+                    </button>
+                    <button onclick="toggleActiveTimersDrawer()" class="relative px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 text-xs rounded-lg font-medium transition flex items-center gap-1">
+                        ⏱️ 進行中計時器 <span id="active-timer-badge" class="bg-amber-600 text-white rounded-full px-1.5 py-0.2 text-[10px] hidden">0</span>
                     </button>
                 </div>
             </div>
 
-            <!-- 步驟清單 -->
-            <div id="execution-steps-list" class="space-y-3">
-                <!-- 動態載入 -->
-            </div>
-        </section>
-
-        <!-- 設定頁面 -->
-        <section id="section-templates" class="space-y-6 hidden">
-            <div class="bg-white p-5 rounded-2xl shadow-sm border border-amber-100">
-                <h2 class="text-base font-bold text-amber-900 mb-4 flex items-center">
-                    <i class="fa-solid fa-plus-circle mr-2 text-amber-600"></i>新增標準備料與出攤步驟
-                </h2>
-                <form onsubmit="addStep(event)" class="space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-600 mb-1">步驟名稱</label>
-                            <input type="text" id="new-title" required placeholder="例如：煮壽司飯 / 切小黃瓜絲" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-600 mb-1">分類標籤</label>
-                            <select id="new-category" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
-                                <option value="前置備料">前置備料</option>
-                                <option value="食材烹煮">食材烹煮</option>
-                                <option value="攤位組裝">攤位組裝</option>
-                                <option value="開攤準備">開攤準備</option>
-                                <option value="其他">其他</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-600 mb-1">附加計時倒數時間 (分鐘，選填)</label>
-                            <input type="number" id="new-timer" min="0" placeholder="例如：10 (若不需要填 0 或留空)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-600 mb-1">備註說明 (選填)</label>
-                            <input type="text" id="new-desc" placeholder="例如：水滾後轉小火計時" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
-                        </div>
-                    </div>
-                    <div class="flex justify-end">
-                        <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition shadow">
-                            新增步驟
-                        </button>
-                    </div>
-                </form>
+            <!-- Active Timers Floating / Top Bar -->
+            <div id="timers-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                <!-- Dynamic Active Timers injected here -->
             </div>
 
-            <!-- 現有步驟範本清單 -->
-            <div class="bg-white p-5 rounded-2xl shadow-sm border border-amber-100">
-                <h2 class="text-base font-bold text-amber-900 mb-4 flex items-center">
-                    <i class="fa-solid fa-list mr-2 text-amber-600"></i>現有步驟管理
-                </h2>
-                <div id="templates-list" class="space-y-3">
-                    <!-- 動態載入 -->
+            <!-- Steps List -->
+            <div class="bg-white rounded-2xl shadow-sm border border-amber-200 overflow-hidden">
+                <div class="bg-amber-100/60 px-4 py-3 border-b border-amber-200 flex justify-between items-center">
+                    <h2 class="font-bold text-amber-900 flex items-center gap-2 text-base">
+                        <span>📋</span> 備料與出攤步驟清單
+                    </h2>
+                    <span id="step-counter-badge" class="text-xs bg-amber-200 text-amber-800 px-2 py-1 rounded-full font-semibold">完成 0 / 0</span>
+                </div>
+                <div id="execution-steps-list" class="divide-y divide-slate-100">
+                    <!-- Dynamic Execution Steps injected here -->
                 </div>
             </div>
-        </section>
+        </div>
+
+        <!-- ================= TEMPLATES VIEW ================= -->
+        <div id="view-templates" class="space-y-4 hidden">
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-amber-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-800">步驟模板管理</h2>
+                    <p class="text-xs text-slate-500">在這裡設定您的標準備料與出攤步驟。變更會自動儲存至雲端。</p>
+                </div>
+                <div class="flex gap-2 w-full sm:w-auto">
+                    <button onclick="openStepModal()" class="flex-1 sm:flex-none px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold rounded-xl shadow transition flex items-center justify-center gap-1">
+                        ➕ 新增步驟
+                    </button>
+                    <button onclick="loadDefaultTemplate()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-xl transition">
+                        載入飯捲店範例
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-amber-200 overflow-hidden">
+                <div id="template-steps-list" class="divide-y divide-slate-100">
+                    <!-- Dynamic Template Steps injected here -->
+                </div>
+            </div>
+        </div>
+
     </main>
 
-    <!-- 時間到提醒彈窗 (Modal) -->
-    <div id="alarm-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl animate-bounce">
-            <div class="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
-                <i class="fa-solid fa-bell"></i>
+    <!-- Add/Edit Step Modal -->
+    <div id="step-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4 border border-amber-100">
+            <div class="flex justify-between items-center">
+                <h3 id="modal-title" class="text-lg font-bold text-slate-800">新增步驟</h3>
+                <button onclick="closeStepModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
             </div>
-            <h3 class="text-lg font-bold text-slate-800 mb-2">計時結束！</h3>
-            <p id="alarm-message" class="text-slate-600 text-sm mb-6 font-medium">項目時間到，請立即處理！</p>
-            <button onclick="dismissAlarm()" class="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl transition shadow">
-                我知道了，關閉提示
+            <form id="step-form" onsubmit="saveStep(event)" class="space-y-4">
+                <input type="hidden" id="modal-step-id">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">步驟名稱 / 任務內容 *</label>
+                    <input type="text" id="modal-step-title" required placeholder="例如：煮好壽司飯 / 備好紅蘿蔔絲" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">分類標籤</label>
+                        <select id="modal-step-category" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+                            <option value="前置備料">前置備料</option>
+                            <option value="食材烹煮">食材烹煮</option>
+                            <option value="攤位組裝">攤位組裝</option>
+                            <option value="開攤準備">開攤準備</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">計時倒數 (分鐘)</label>
+                        <input type="number" id="modal-step-timer" min="0" step="0.5" placeholder="0 表示無計時" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">詳細備註或提醒 (選填)</label>
+                    <textarea id="modal-step-notes" rows="2" placeholder="例如：水滾後下料，計時10分鐘記得關火..." class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"></textarea>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeStepModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-medium">取消</button>
+                    <button type="submit" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-sm font-semibold shadow">儲存步驟</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Timer Alert Modal -->
+    <div id="timer-alert-modal" class="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden animate-pulse">
+        <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center space-y-4 border-4 border-amber-500">
+            <div class="text-6xl animate-bounce">⏰</div>
+            <h3 class="text-xl font-black text-amber-900" id="alert-title">計時倒數完成！</h3>
+            <p class="text-sm text-slate-600 font-medium" id="alert-message">您的計時器已結束，請立即檢查對應動作！</p>
+            <button onclick="dismissTimerAlert()" class="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-base shadow-lg transition">
+                知道了，關閉提醒
             </button>
         </div>
     </div>
 
-    <!-- JavaScript 邏輯 -->
-    <script>
-        // 分類標籤對應的顏色配置
-        const categoryColors = {
-            '前置備料': 'bg-blue-100 text-blue-700 border-blue-200',
-            '食材烹煮': 'bg-amber-100 text-amber-700 border-amber-200',
-            '攤位組裝': 'bg-purple-100 text-purple-700 border-purple-200',
-            '開攤準備': 'bg-emerald-100 text-emerald-700 border-emerald-200',
-            '其他': 'bg-slate-100 text-slate-700 border-slate-200'
-        };
+    <!-- Firebase SDK & App Logic -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // 預設範本
-        const defaultTemplates = [
-            { id: '1', title: '準備煮飯用水與洗米', category: '前置備料', timerMinutes: 0, desc: '洗淨瀝乾準備下鍋' },
-            { id: '2', title: '按下電鍋煮飯開關', category: '食材烹煮', timerMinutes: 30, desc: '煮飯標準時間' },
-            { id: '3', title: '燙菠菜與紅蘿蔔絲', category: '食材烹煮', timerMinutes: 3, desc: '滾水川燙3分鐘後撈起過冷水' },
-            { id: '4', title: '煎玉子燒蛋皮', category: '食材烹煮', timerMinutes: 5, desc: '小火慢煎捲起' },
-            { id: '5', title: '攤位桌椅與招牌組裝', category: '攤位組裝', timerMinutes: 0, desc: '確認位置與電源' }
+        // Default Kimbap Shop Steps Template
+        const defaultSteps = [
+            { id: '1', title: '洗米並煮壽司飯', category: '前置備料', timerMinutes: 30, notes: '水量比例抓好，電鍋跳起後悶15分鐘。' },
+            { id: '2', title: '川燙菠菜並調味', category: '食材烹煮', timerMinutes: 3, notes: '水滾下鍋3分鐘撈起，迅速過冷水榨乾拌麻油鹽。' },
+            { id: '3', title: '煮水準備川燙肉片/火腿', category: '食材烹煮', timerMinutes: 10, notes: '大火煮滾10分鐘後轉小火或關火備用。' },
+            { id: '4', title: '煎蛋皮並切絲', category: '食材烹煮', timerMinutes: 5, notes: '小火慢煎兩面金黃，放涼後切細絲。' },
+            { id: '5', title: '準備醃蘿蔔與黃瓜條', category: '前置備料', timerMinutes: 0, notes: '切好一致長度與厚度方便包捲。' },
+            { id: '6', title: '調製飯捲靈魂壽司醋醬', category: '前置備料', timerMinutes: 0, notes: '白醋、糖、鹽按比例加熱融化拌入飯中。' },
+            { id: '7', title: '攤位工具與竹簾消毒就定位', category: '攤位組裝', timerMinutes: 0, notes: '手套、海苔、包材、手水碗備齊。' },
+            { id: '8', title: '最後出攤開賣準備完成', category: '開攤準備', timerMinutes: 0, notes: '準備迎接客人！' }
         ];
 
-        let templates = JSON.parse(localStorage.getItem('kimbap_templates')) || defaultTemplates;
-        let dailyProgress = JSON.parse(localStorage.getItem('kimbap_daily_progress')) || {}; // { 'YYYY-MM-DD': { stepId: boolean } }
-        let activeTimers = []; // { id, title, remainingSeconds, totalSeconds }
+        // Global State
+        let templates = [];
+        let activeExecDate = getTodayDateString();
+        let executionData = {}; // stepId -> { completed: boolean }
+        let activeTimers = JSON.parse(localStorage.getItem('kimbap_active_timers')) || [];
+        let audioCtx = null;
 
-        // 初始化日期
-        const todayStr = new Date().toISOString().split('T')[0];
-        document.getElementById('work-date').value = todayStr;
+        // Firebase Setup
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'kimbap-shop-default-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        
+        let app, db, auth, userId;
+        
+        window.onload = async function() {
+            document.getElementById('exec-date-picker').value = activeExecDate;
+            updateDateDisplay();
 
-        // 頁籤切換
-        function switchTab(tabName) {
-            const executeSec = document.getElementById('section-execute');
-            const templateSec = document.getElementById('section-templates');
-            const tabExBtn = document.getElementById('tab-execute');
-            const tabTeBtn = document.getElementById('tab-templates');
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
 
-            if (tabName === 'execute') {
-                executeSec.classList.remove('hidden');
-                templateSec.classList.add('hidden');
-                tabExBtn.className = "flex-1 py-3 text-center font-bold text-amber-700 border-b-2 border-amber-600 transition flex items-center justify-center space-x-2";
-                tabTeBtn.className = "flex-1 py-3 text-center font-medium text-slate-500 hover:text-amber-700 border-b-2 border-transparent transition flex items-center justify-center space-x-2";
-                renderExecution();
-            } else {
-                executeSec.classList.add('hidden');
-                templateSec.classList.remove('hidden');
-                tabTeBtn.className = "flex-1 py-3 text-center font-bold text-amber-700 border-b-2 border-amber-600 transition flex items-center justify-center space-x-2";
-                tabExBtn.className = "flex-1 py-3 text-center font-medium text-slate-500 hover:text-amber-700 border-b-2 border-transparent transition flex items-center justify-center space-x-2";
-                renderTemplates();
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                userId = auth.currentUser?.uid || crypto.randomUUID();
+                document.getElementById('sync-status').innerText = '雲端同步已連線';
+                document.getElementById('sync-status').className = 'text-[10px] bg-emerald-700 px-1.5 py-0.5 rounded text-emerald-100';
+
+                // Initialize Listeners
+                initTemplatesListener();
+                initExecutionListener();
+
+            } catch (e) {
+                console.warn('Firebase initialization fallback to local mode:', e);
+                document.getElementById('sync-status').innerText = '本機儲存模式';
+                document.getElementById('sync-status').className = 'text-[10px] bg-amber-800 px-1.5 py-0.5 rounded text-amber-200';
+                
+                // Fallback to localStorage
+                templates = JSON.parse(localStorage.getItem('kimbap_templates')) || defaultSteps;
+                loadExecutionDataLocal();
+                renderTemplatesView();
+                renderExecutionView();
+            }
+
+            // Start Timer Tick
+            setInterval(timerTick, 1000);
+        };
+
+        // --- FIREBASE SYNC FUNCTIONS ---
+        function initTemplatesListener() {
+            if (!db || !userId) return;
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'kimbap_templates_doc');
+            onSnapshot(docRef, (docSnap) => {
+                if (docSnap.exists() && docSnap.data().steps) {
+                    templates = docSnap.data().steps;
+                } else {
+                    templates = defaultSteps;
+                    saveTemplatesCloud(); // Save defaults if empty
+                }
+                renderTemplatesView();
+                renderExecutionView();
+            }, (err) => {
+                console.error("Template sync error:", err);
+            });
+        }
+
+        async function saveTemplatesCloud() {
+            if (!db || !userId) {
+                localStorage.setItem('kimbap_templates', JSON.stringify(templates));
+                return;
+            }
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'kimbap_templates_doc');
+                await setDoc(docRef, { steps: templates });
+            } catch (e) {
+                console.error("Error saving templates:", e);
             }
         }
 
-        function changeDate() {
-            renderExecution();
+        function initExecutionListener() {
+            if (!db || !userId) return;
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'kimbap_exec_' + activeExecDate);
+            onSnapshot(docRef, (docSnap) => {
+                if (docSnap.exists() && docSnap.data().data) {
+                    executionData = docSnap.data().data;
+                } else {
+                    executionData = {};
+                }
+                renderExecutionView();
+            }, (err) => {
+                console.error("Execution data sync error:", err);
+            });
         }
 
-        // 渲染執行頁面
-        function renderExecution() {
-            const dateVal = document.getElementById('work-date').value;
-            const container = document.getElementById('execution-steps-list');
-            const progress = dailyProgress[dateVal] || {};
+        async function saveExecutionCloud() {
+            if (!db || !userId) {
+                localStorage.setItem('kimbap_exec_' + activeExecDate, JSON.stringify(executionData));
+                return;
+            }
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'kimbap_exec_' + activeExecDate);
+                await setDoc(docRef, { data: executionData });
+            } catch (e) {
+                console.error("Error saving execution data:", e);
+            }
+        }
 
-            if (templates.length === 0) {
-                container.innerHTML = `<div class="text-center py-10 text-slate-400 bg-white rounded-2xl border border-amber-100">尚無步驟範本，請至上方「步驟與標籤設定」新增！</div>`;
-                updateProgress(0, 0);
+        function loadExecutionDataLocal() {
+            const saved = localStorage.getItem('kimbap_exec_' + activeExecDate);
+            executionData = saved ? JSON.parse(saved) : {};
+        }
+
+        // --- UTILS & DATE ---
+        function getTodayDateString() {
+            const d = new Date();
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function updateDateDisplay() {
+            const dObj = new Date(activeExecDate);
+            const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
+            document.getElementById('current-date-display').innerText = `工作日期：${dObj.toLocaleDateString('zh-TW', options)}`;
+        }
+
+        window.changeExecDate = function(newDate) {
+            if(!newDate) return;
+            activeExecDate = newDate;
+            updateDateDisplay();
+            if (db && userId) {
+                initExecutionListener();
+            } else {
+                loadExecutionDataLocal();
+                renderExecutionView();
+            }
+        }
+
+        // --- AUDIO BEEP ---
+        function playBeep() {
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.5);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 1.5);
+            } catch(e) {
+                console.log('Audio context error:', e);
+            }
+        }
+
+        // --- TAB SWITCHING ---
+        window.switchTab = function(tabName) {
+            const execView = document.getElementById('view-execution');
+            const tempView = document.getElementById('view-templates');
+            const execBtn = document.getElementById('tab-execution');
+            const tempBtn = document.getElementById('tab-templates');
+
+            if (tabName === 'execution') {
+                execView.classList.remove('hidden');
+                tempView.classList.add('hidden');
+                execBtn.className = "px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-700 text-white transition shadow-sm";
+                tempBtn.className = "px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-500/80 hover:bg-amber-500 text-white transition";
+                renderExecutionView();
+            } else {
+                execView.classList.add('hidden');
+                tempView.classList.remove('hidden');
+                tempBtn.className = "px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-700 text-white transition shadow-sm";
+                execBtn.className = "px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-500/80 hover:bg-amber-500 text-white transition";
+                renderTemplatesView();
+            }
+        }
+
+        // --- TEMPLATE RENDERING & EDITING ---
+        window.loadDefaultTemplate = function() {
+            if (confirm('確定要載入預設飯捲店步驟範例嗎？這將覆蓋您目前的步驟設定。')) {
+                templates = JSON.parse(JSON.stringify(defaultSteps));
+                saveTemplatesCloud();
+                renderTemplatesView();
+            }
+        }
+
+        // Helper for category badge colors
+        function getCategoryBadgeClass(category) {
+            switch(category) {
+                case '前置備料':
+                    return 'bg-blue-100 text-blue-800 border border-blue-200';
+                case '食材烹煮':
+                    return 'bg-orange-100 text-orange-800 border border-orange-200';
+                case '攤位組裝':
+                    return 'bg-purple-100 text-purple-800 border border-purple-200';
+                case '開攤準備':
+                    return 'bg-emerald-100 text-emerald-800 border border-emerald-200';
+                default:
+                    return 'bg-amber-100 text-amber-800 border border-amber-200';
+            }
+        }
+
+        function renderTemplatesView() {
+            const listContainer = document.getElementById('template-steps-list');
+            if (!templates || templates.length === 0) {
+                listContainer.innerHTML = `<div class="p-8 text-center text-slate-400 text-sm">目前尚無設定步驟，請點擊上方「新增步驟」或「載入範例」。</div>`;
                 return;
             }
 
             let html = '';
+            templates.forEach((step, index) => {
+                const timerBadge = step.timerMinutes > 0 ? `<span class="bg-amber-100 text-amber-800 text-xs px-2 py-0.5 rounded-full font-medium">⏱️ ${step.timerMinutes} 分鐘倒數</span>` : '';
+                const catClass = getCategoryBadgeClass(step.category);
+                html += `
+                    <div class="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-amber-50/40 transition">
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="bg-slate-200 text-slate-700 text-xs px-2 py-0.5 rounded font-bold">#${index + 1}</span>
+                                <span class="${catClass} text-xs px-2 py-0.5 rounded font-medium">${step.category || '一般'}</span>
+                                <h3 class="font-bold text-slate-800 text-base">${escapeHtml(step.title)}</h3>
+                                ${timerBadge}
+                            </div>
+                            ${step.notes ? `<p class="text-xs text-slate-500 pl-6">${escapeHtml(step.notes)}</p>` : ''}
+                        </div>
+                        <div class="flex items-center gap-2 self-end sm:self-center">
+                            <button onclick="moveStepOrder('${step.id}', -1)" ${index === 0 ? 'disabled class="opacity-30 cursor-not-allowed p-1 text-slate-400"' : 'class="p-1 text-slate-600 hover:bg-slate-100 rounded"'}>⬆️</button>
+                            <button onclick="moveStepOrder('${step.id}', 1)" ${index === templates.length - 1 ? 'disabled class="opacity-30 cursor-not-allowed p-1 text-slate-400"' : 'class="p-1 text-slate-600 hover:bg-slate-100 rounded"'}>⬇️</button>
+                            <button onclick="editStep('${step.id}')" class="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-medium">編輯</button>
+                            <button onclick="deleteStep('${step.id}')" class="px-3 py-1 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs font-medium">刪除</button>
+                        </div>
+                    </div>
+                `;
+            });
+            listContainer.innerHTML = html;
+        }
+
+        window.openStepModal = function(stepId = null) {
+            document.getElementById('step-modal').classList.remove('hidden');
+            if (stepId) {
+                document.getElementById('modal-title').innerText = '編輯步驟';
+                const step = templates.find(s => s.id === stepId);
+                if (step) {
+                    document.getElementById('modal-step-id').value = step.id;
+                    document.getElementById('modal-step-title').value = step.title;
+                    document.getElementById('modal-step-category').value = step.category || '前置備料';
+                    document.getElementById('modal-step-timer').value = step.timerMinutes || 0;
+                    document.getElementById('modal-step-notes').value = step.notes || '';
+                }
+            } else {
+                document.getElementById('modal-title').innerText = '新增步驟';
+                document.getElementById('step-form').reset();
+                document.getElementById('modal-step-id').value = '';
+                document.getElementById('modal-step-timer').value = '0';
+            }
+        }
+
+        window.closeStepModal = function() {
+            document.getElementById('step-modal').classList.add('hidden');
+        }
+
+        window.saveStep = function(e) {
+            e.preventDefault();
+            const id = document.getElementById('modal-step-id').value;
+            const title = document.getElementById('modal-step-title').value.trim();
+            const category = document.getElementById('modal-step-category').value;
+            const timerMinutes = parseFloat(document.getElementById('modal-step-timer').value) || 0;
+            const notes = document.getElementById('modal-step-notes').value.trim();
+
+            if (!title) return;
+
+            if (id) {
+                const index = templates.findIndex(s => s.id === id);
+                if (index !== -1) {
+                    templates[index] = { id, title, category, timerMinutes, notes };
+                }
+            } else {
+                const newId = Date.now().toString();
+                templates.push({ id: newId, title, category, timerMinutes, notes });
+            }
+
+            saveTemplatesCloud();
+            closeStepModal();
+            renderTemplatesView();
+        }
+
+        window.editStep = function(id) {
+            openStepModal(id);
+        }
+
+        window.deleteStep = function(id) {
+            if (confirm('確定要刪除這個步驟嗎？')) {
+                templates = templates.filter(s => s.id !== id);
+                saveTemplatesCloud();
+                renderTemplatesView();
+            }
+        }
+
+        window.moveStepOrder = function(id, direction) {
+            const index = templates.findIndex(s => s.id === id);
+            if (index === -1) return;
+            const targetIndex = index + direction;
+            if (targetIndex < 0 || targetIndex >= templates.length) return;
+            
+            const temp = templates[index];
+            templates[index] = templates[targetIndex];
+            templates[targetIndex] = temp;
+
+            saveTemplatesCloud();
+            renderTemplatesView();
+        }
+
+        // --- EXECUTION RENDERING & TIMERS ---
+        function renderExecutionView() {
+            const listContainer = document.getElementById('execution-steps-list');
+            if (!templates || templates.length === 0) {
+                listContainer.innerHTML = `<div class="p-8 text-center text-slate-400 text-sm">尚未設定任何步驟，請先至「步驟設定」新增或載入範例。</div>`;
+                document.getElementById('overall-progress-bar').style.width = '0%';
+                document.getElementById('overall-progress-text').innerText = '0%';
+                document.getElementById('step-counter-badge').innerText = '完成 0 / 0';
+                return;
+            }
+
             let completedCount = 0;
+            let html = '';
 
             templates.forEach((step, index) => {
-                const isChecked = progress[step.id] || false;
-                if (isChecked) completedCount++;
-                const colorClass = categoryColors[step.category] || categoryColors['其他'];
+                const isCompleted = executionData[step.id] && executionData[step.id].completed;
+                if (isCompleted) completedCount++;
+
+                const timerMinutes = step.timerMinutes || 0;
+                let timerBtnHtml = '';
+                if (timerMinutes > 0) {
+                    const existingTimer = activeTimers.find(t => t.stepId === step.id);
+                    if (existingTimer) {
+                        timerBtnHtml = `<span class="px-2.5 py-1 bg-amber-500 text-white rounded-lg text-xs font-bold animate-pulse flex items-center gap-1">⏱️ 計時中 (${formatTime(existingTimer.remainingSeconds)})</span>`;
+                    } else {
+                        timerBtnHtml = `<button onclick="startStepTimer('${step.id}', ${timerMinutes}, '${escapeHtml(step.title)}')" class="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-lg text-xs font-semibold transition flex items-center gap-1">⏱️ 啟動計時 (${timerMinutes}分)</button>`;
+                    }
+                }
+
+                const catClass = getCategoryBadgeClass(step.category);
 
                 html += `
-                    <div class="bg-white p-4 rounded-2xl shadow-sm border ${isChecked ? 'border-emerald-200 bg-emerald-50/20' : 'border-amber-100'} flex items-center justify-between gap-3 transition">
-                        <div class="flex items-center space-x-3 flex-1">
-                            <input type="checkbox" ${isChecked ? 'checked' : ''} onclick="toggleStep('${step.id}')" class="w-6 h-6 text-amber-600 rounded-lg border-slate-300 focus:ring-amber-500 cursor-pointer">
-                            <div>
-                                <div class="flex items-center space-x-2 flex-wrap gap-y-1">
-                                    <span class="text-xs font-bold px-2 py-0.5 rounded-md border ${colorClass}">${step.category}</span>
-                                    <h3 class="text-sm font-bold ${isChecked ? 'line-through text-slate-400' : 'text-slate-800'}">${index + 1}. ${step.title}</h3>
+                    <div class="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition ${isCompleted ? 'bg-emerald-50/50 opacity-75' : 'hover:bg-amber-50/30'}">
+                        <div class="flex items-start gap-3">
+                            <input type="checkbox" ${isCompleted ? 'checked' : ''} onchange="toggleStepComplete('${step.id}')" class="mt-1 w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500 cursor-pointer">
+                            <div class="space-y-1">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="text-xs font-bold text-slate-400">#${index + 1}</span>
+                                    <span class="${catClass} text-[11px] px-2 py-0.5 rounded font-medium">${step.category || '一般'}</span>
+                                    <h3 class="font-bold text-slate-800 text-base ${isCompleted ? 'line-through text-slate-400' : ''}">${escapeHtml(step.title)}</h3>
                                 </div>
-                                ${step.desc ? `<p class="text-xs text-slate-500 mt-1">${step.desc}</p>` : ''}
+                                ${step.notes ? `<p class="text-xs text-slate-500">${escapeHtml(step.notes)}</p>` : ''}
                             </div>
                         </div>
-                        <div class="flex items-center space-x-2">
-                            ${step.timerMinutes > 0 ? `
-                                <button onclick="startTimer('${step.id}', '${step.title}',${step.timerMinutes})" class="bg-amber-100 hover:bg-amber-200 text-amber-800 text-xs px-3 py-2 rounded-xl font-bold transition flex items-center space-x-1 cursor-pointer">
-                                    <i class="fa-solid fa-stopwatch"></i>
-                                    <span>${step.timerMinutes}分</span>
-                                </button>
-                            ` : ''}
+                        <div class="flex items-center gap-2 self-end sm:self-center pl-8 sm:pl-0">
+                            ${timerBtnHtml}
                         </div>
                     </div>
                 `;
             });
 
-            container.innerHTML = html;
-            updateProgress(completedCount, templates.length);
+            listContainer.innerHTML = html;
+
+            const total = templates.length;
+            const percent = total > 0 ? Math.round((completedCount / total) * 100) : 0;
+            document.getElementById('overall-progress-bar').style.width = percent + '%';
+            document.getElementById('overall-progress-text').innerText = percent + '%';
+            document.getElementById('step-counter-badge').innerText = `完成 ${completedCount} / ${total}`;
+
+            renderActiveTimersBar();
         }
 
-        function toggleStep(stepId) {
-            const dateVal = document.getElementById('work-date').value;
-            if (!dailyProgress[dateVal]) dailyProgress[dateVal] = {};
-            dailyProgress[dateVal][stepId] = !dailyProgress[dateVal][stepId];
-            localStorage.setItem('kimbap_daily_progress', JSON.stringify(dailyProgress));
-            renderExecution();
+        window.toggleStepComplete = function(stepId) {
+            if (!executionData[stepId]) {
+                executionData[stepId] = {};
+            }
+            executionData[stepId].completed = !executionData[stepId].completed;
+            saveExecutionCloud();
+            renderExecutionView();
         }
 
-        function updateProgress(completed, total) {
-            const text = document.getElementById('progress-text');
-            const bar = document.getElementById('progress-bar');
-            const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
-            text.innerText = `${completed} / ${total} (${percent}%)`;
-            bar.style.width = `${percent}%`;
-        }
-
-        function resetTodayProgress() {
-            const dateVal = document.getElementById('work-date').value;
-            if (dailyProgress[dateVal]) {
-                dailyProgress[dateVal] = {};
-                localStorage.setItem('kimbap_daily_progress', JSON.stringify(dailyProgress));
-                renderExecution();
+        window.resetExecutionProgress = function() {
+            if (confirm(`確定要重置 ${activeExecDate} 的所有勾選進度嗎？`)) {
+                executionData = {};
+                saveExecutionCloud();
+                renderExecutionView();
             }
         }
 
-        // 步驟設定管理
-        function renderTemplates() {
-            const container = document.getElementById('templates-list');
-            if (templates.length === 0) {
-                container.innerHTML = `<div class="text-center py-6 text-slate-400">尚無自訂步驟</div>`;
-                return;
-            }
-
-            let html = '';
-            templates.forEach((step, index) => {
-                const colorClass = categoryColors[step.category] || categoryColors['其他'];
-                html += `
-                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center justify-between gap-3">
-                        <div class="flex items-center space-x-2 flex-wrap">
-                            <span class="text-xs font-bold px-2 py-0.5 rounded-md border ${colorClass}">${step.category}</span>
-                            <span class="text-sm font-bold text-slate-700">${step.title}</span>
-                            ${step.timerMinutes > 0 ? `<span class="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md font-medium"><i class="fa-solid fa-stopwatch mr-1"></i>${step.timerMinutes}分鐘</span>` : ''}
-                        </div>
-                        <button onclick="deleteTemplate('${step.id}')" class="text-slate-400 hover:text-red-500 p-1.5 transition">
-                            <i class="fa-solid fa-trash-can text-sm"></i>
-                        </button>
-                    </div>
-                `;
-            });
-            container.innerHTML = html;
-        }
-
-        function addStep(e) {
-            e.preventDefault();
-            const title = document.getElementById('new-title').value;
-            const category = document.getElementById('new-category').value;
-            const timerMinutes = parseInt(document.getElementById('new-timer').value) || 0;
-            const desc = document.getElementById('new-desc').value;
-
-            const newStep = {
-                id: Date.now().toString(),
-                title,
-                category,
-                timerMinutes,
-                desc
-            };
-
-            templates.push(newStep);
-            localStorage.setItem('kimbap_templates', JSON.stringify(templates));
-            
-            document.getElementById('new-title').value = '';
-            document.getElementById('new-timer').value = '';
-            document.getElementById('new-desc').value = '';
-            
-            renderTemplates();
-            renderExecution();
-        }
-
-        function deleteTemplate(id) {
-            templates = templates.filter(t => t.id !== id);
-            localStorage.setItem('kimbap_templates', JSON.stringify(templates));
-            renderTemplates();
-            renderExecution();
-        }
-
-        // 計時器邏輯
-        function startTimer(stepId, title, minutes) {
-            const totalSeconds = minutes * 60;
-            const timerObj = {
-                id: Date.now() + Math.random(),
+        // --- TIMER ENGINE ---
+        window.startStepTimer = function(stepId, minutes, title) {
+            const totalSeconds = Math.round(minutes * 60);
+            activeTimers = activeTimers.filter(t => t.stepId !== stepId);
+            activeTimers.push({
+                id: Date.now().toString() + Math.random(),
+                stepId: stepId,
                 title: title,
                 remainingSeconds: totalSeconds,
                 totalSeconds: totalSeconds
-            };
-            activeTimers.push(timerObj);
-            updateTimersDisplay();
+            });
+            localStorage.setItem('kimbap_active_timers', JSON.stringify(activeTimers));
+            renderExecutionView();
         }
 
-        function cancelTimer(id) {
-            activeTimers = activeTimers.filter(t => t.id !== id);
-            updateTimersDisplay();
+        window.cancelTimer = function(timerId) {
+            activeTimers = activeTimers.filter(t => t.id !== timerId);
+            localStorage.setItem('kimbap_active_timers', JSON.stringify(activeTimers));
+            renderExecutionView();
         }
 
-        function updateTimersDisplay() {
+        function timerTick() {
+            if (activeTimers.length === 0) return;
+
+            let updated = false;
+            activeTimers = activeTimers.map(timer => {
+                if (timer.remainingSeconds > 0) {
+                    timer.remainingSeconds--;
+                    updated = true;
+                }
+                return timer;
+            });
+
+            const completedTimers = activeTimers.filter(t => t.remainingSeconds === 0);
+            activeTimers = activeTimers.filter(t => t.remainingSeconds > 0);
+
+            if (completedTimers.length > 0) {
+                localStorage.setItem('kimbap_active_timers', JSON.stringify(activeTimers));
+                renderExecutionView();
+                triggerTimerAlert(completedTimers.map(t => t.title).join('、'));
+            } else if (updated) {
+                localStorage.setItem('kimbap_active_timers', JSON.stringify(activeTimers));
+                renderActiveTimersBar();
+            }
+        }
+
+        function triggerTimerAlert(titles) {
+            playBeep();
+            document.getElementById('alert-title').innerText = '⏰ 倒數計時完成！';
+            document.getElementById('alert-message').innerText = `步驟「${titles}」的時間已到，請前往確認！`;
+            document.getElementById('timer-alert-modal').classList.remove('hidden');
+        }
+
+        window.dismissTimerAlert = function() {
+            document.getElementById('timer-alert-modal').classList.add('hidden');
+        }
+
+        function renderActiveTimersBar() {
             const container = document.getElementById('timers-container');
-            const list = document.getElementById('running-timers-list');
-            const countLabel = document.getElementById('active-timer-count');
+            const badge = document.getElementById('active-timer-badge');
 
             if (activeTimers.length === 0) {
-                container.classList.add('hidden');
+                container.innerHTML = '';
+                badge.classList.add('hidden');
                 return;
             }
 
-            container.classList.remove('hidden');
-            countLabel.innerText = `${activeTimers.length} 個計時中`;
+            badge.innerText = activeTimers.length;
+            badge.classList.remove('hidden');
 
             let html = '';
             activeTimers.forEach(timer => {
-                const m = Math.floor(timer.remainingSeconds / 60);
-                const s = timer.remainingSeconds % 60;
-                const timeStr = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-                
+                const progressPct = ((timer.totalSeconds - timer.remainingSeconds) / timer.totalSeconds) * 100;
                 html += `
-                    <div class="bg-amber-800 border border-amber-700 rounded-xl px-3 py-1.5 flex items-center space-x-3 text-xs shadow-sm">
-                        <div>
-                            <span class="font-bold text-amber-200 block">${timer.title}</span>
-                            <span class="text-sm font-mono font-bold text-white">${timeStr}</span>
+                    <div class="bg-amber-500 text-white rounded-2xl p-3 shadow-md flex items-center justify-between gap-3 relative overflow-hidden">
+                        <div class="absolute bottom-0 left-0 h-1 bg-amber-300 transition-all duration-500" style="width: ${progressPct}%"></div>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-xs text-amber-100 font-medium truncate">倒數中：${escapeHtml(timer.title)}</p>
+                            <p class="text-xl font-black font-mono tracking-wider">${formatTime(timer.remainingSeconds)}</p>
                         </div>
-                        <button onclick="cancelTimer(${timer.id})" class="text-amber-300 hover:text-white p-1">
-                            <i class="fa-solid fa-xmark"></i>
+                        <button onclick="cancelTimer('${timer.id}')" class="bg-amber-700 hover:bg-amber-800 text-white text-xs px-2.5 py-1.5 rounded-xl font-bold transition shadow-sm">
+                            停止
                         </button>
                     </div>
                 `;
             });
-            list.innerHTML = html;
+            container.innerHTML = html;
         }
 
-        // 每秒倒數計時核心
-        setInterval(() => {
-            if (activeTimers.length === 0) return;
-
-            let finishedTimerTitle = null;
-            activeTimers.forEach(timer => {
-                timer.remainingSeconds--;
-                if (timer.remainingSeconds <= 0) {
-                    finishedTimerTitle = timer.title;
-                }
-            });
-
-            if (finishedTimerTitle) {
-                // 移除第一個到期的計時器
-                const finished = activeTimers.find(t => t.remainingSeconds <= 0);
-                if (finished) {
-                    activeTimers = activeTimers.filter(t => t.id !== finished.id);
-                    triggerAlarm(finished.title);
-                }
-            }
-
-            updateTimersDisplay();
-        }, 1000);
-
-        function triggerAlarm(title) {
-            document.getElementById('alarm-message').innerText = `「${title}」時間到！請注意鍋況或進行下一步！`;
-            document.getElementById('alarm-modal').classList.remove('hidden');
-            // 震動通知 (支援行動裝置)
-            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+        window.toggleActiveTimersDrawer = function() {
+            const container = document.getElementById('timers-container');
+            container.scrollIntoView({ behavior: 'smooth' });
         }
 
-        function dismissAlarm() {
-            document.getElementById('alarm-modal').classList.add('hidden');
+        function formatTime(totalSec) {
+            const m = Math.floor(totalSec / 60);
+            const s = totalSec % 60;
+            return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
         }
 
-        // 資料匯出備份
-        function exportData() {
-            const backupData = {
-                templates: templates,
-                dailyProgress: dailyProgress,
-                exportDate: new Date().toISOString()
-            };
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
-            const downloadAnchor = document.createElement('a');
-            downloadAnchor.setAttribute("href", dataStr);
-            downloadAnchor.setAttribute("download", `kimbap_backup_${todayStr}.json`);
-            document.body.appendChild(downloadAnchor);
-            downloadAnchor.click();
-            downloadAnchor.remove();
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
         }
-
-        // 資料匯入還原
-        function importData(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const parsed = JSON.parse(e.target.result);
-                    if (parsed.templates && parsed.dailyProgress) {
-                        templates = parsed.templates;
-                        dailyProgress = parsed.dailyProgress;
-                        localStorage.setItem('kimbap_templates', JSON.stringify(templates));
-                        localStorage.setItem('kimbap_daily_progress', JSON.stringify(dailyProgress));
-                        renderExecution();
-                        renderTemplates();
-                        alert('備份資料還原成功！');
-                    } else {
-                        alert('檔案格式錯誤，找不到有效的備份結構。');
-                    }
-                } catch (err) {
-                    alert('解析備份檔案失敗，請確認檔案格式是否正確。');
-                }
-                event.target.value = ''; // 清空 input 讓重複檔案可再觸發
-            };
-            reader.readAsText(file);
-        }
-
-        // 初次載入渲染
-        renderExecution();
     </script>
 </body>
 </html>
