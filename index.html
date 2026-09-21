@@ -24,7 +24,15 @@
                     </div>
                 </div>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex flex-wrap items-center gap-2">
+                <button onclick="exportBackupData()" class="px-2.5 py-1.5 bg-amber-700 hover:bg-amber-800 text-white text-xs font-medium rounded-lg transition shadow-sm flex items-center gap-1 cursor-pointer" title="匯出所有資料備份">
+                    💾 匯出備份
+                </button>
+                <label class="px-2.5 py-1.5 bg-amber-700 hover:bg-amber-800 text-white text-xs font-medium rounded-lg transition shadow-sm flex items-center gap-1 cursor-pointer" title="載入或還原備份資料">
+                    📂 載入備份
+                    <input type="file" id="backup-file-input" accept=".json" class="hidden" onchange="importBackupData(event)">
+                </label>
+                <div class="h-4 w-[1px] bg-amber-500 mx-1"></div>
                 <button onclick="switchTab('execution')" id="tab-execution" class="px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-700 text-white transition shadow-sm">
                     🚀 今日執行
                 </button>
@@ -590,26 +598,6 @@
         }
 
         // --- TIMER ENGINE ---
-        window.startStepTimer = function(stepId, minutes, title) {
-            const totalSeconds = Math.round(minutes * 60);
-            activeTimers = activeTimers.filter(t => t.stepId !== stepId);
-            activeTimers.push({
-                id: Date.now().toString() + Math.random(),
-                stepId: stepId,
-                title: title,
-                remainingSeconds: totalSeconds,
-                totalSeconds: totalSeconds
-            });
-            localStorage.setItem('kimbap_active_timers', JSON.stringify(activeTimers));
-            renderExecutionView();
-        }
-
-        window.cancelTimer = function(timerId) {
-            activeTimers = activeTimers.filter(t => t.id !== timerId);
-            localStorage.setItem('kimbap_active_timers', JSON.stringify(activeTimers));
-            renderExecutionView();
-        }
-
         function timerTick() {
             if (activeTimers.length === 0) return;
 
@@ -633,6 +621,72 @@
                 localStorage.setItem('kimbap_active_timers', JSON.stringify(activeTimers));
                 renderActiveTimersBar();
             }
+        }
+
+        window.exportBackupData = function() {
+            const allStorageData = {
+                templates: templates,
+                appId: appId,
+                exportDate: new Date().toISOString(),
+                // Collect any execution date records from localStorage if local mode was used
+                executionRecords: {}
+            };
+
+            // Gather execution logs stored in localStorage as well
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('kimbap_exec_')) {
+                    try {
+                        allStorageData.executionRecords[key] = JSON.parse(localStorage.getItem(key));
+                    } catch(e) {}
+                }
+            }
+            // Include current active executionData
+            allStorageData.executionRecords['kimbap_exec_' + activeExecDate] = executionData;
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(allStorageData, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `kimbap_shop_backup_${getTodayDateString()}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        window.importBackupData = function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed.templates && Array.isArray(parsed.templates)) {
+                        templates = parsed.templates;
+                        saveTemplatesCloud();
+
+                        if (parsed.executionRecords) {
+                            for (const [key, val] of Object.entries(parsed.executionRecords)) {
+                                localStorage.setItem(key, JSON.stringify(val));
+                                if (key === 'kimbap_exec_' + activeExecDate) {
+                                    executionData = val;
+                                }
+                            }
+                        }
+
+                        renderTemplatesView();
+                        renderExecutionView();
+                        alert('備份資料載入與還原成功！');
+                    } else {
+                        alert('備份檔案格式不正確，找不到有效的步驟模板資料。');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert('解析備份 JSON 檔案失敗，請確認檔案格式是否正確。');
+                }
+                event.target.value = '';
+            };
+            reader.readAsText(file);
         }
 
         function triggerTimerAlert(titles) {
